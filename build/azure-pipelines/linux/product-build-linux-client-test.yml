@@ -9,10 +9,9 @@ parameters:
     type: boolean
 
 steps:
-  - script: |
-      set -e
-      VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-        yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install"
+  - script: yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install"
+    env:
+      VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
     displayName: Download Electron and Playwright
 
   - ${{ if eq(parameters.VSCODE_QUALITY, 'oss') }}:

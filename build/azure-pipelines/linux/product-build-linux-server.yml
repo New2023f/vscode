@@ -13,9 +13,8 @@ steps:
         inputs:
           azureSubscription: "vscode-builds-subscription"
           KeyVaultName: vscode-build-secrets
-          SecretsFilter: "github-distro-mixin-password,ESRP-PKI,esrp-aad-username,esrp-aad-password"
+          SecretsFilter: "github-distro-mixin-password"
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - task: Docker@1
         displayName: "Pull Docker image"
         inputs:
@@ -26,33 +25,7 @@ steps:
           containerCommand: uname
         condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'arm64'))
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          cat << EOF > ~/.netrc
-          machine github.com
-          login vscode
-          password $(github-distro-mixin-password)
-          EOF
-
-          git config user.email "vscode@microsoft.com"
-          git config user.name "VSCode"
-        displayName: Prepare tooling
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          git fetch https://github.com/$(VSCODE_MIXIN_REPO).git $VSCODE_DISTRO_REF
-          echo "##vso[task.setvariable variable=VSCODE_DISTRO_COMMIT;]$(git rev-parse FETCH_HEAD)"
-          git checkout FETCH_HEAD
-        condition: and(succeeded(), ne(variables.VSCODE_DISTRO_REF, ' '))
-        displayName: Checkout override commit
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          git pull --no-rebase https://github.com/$(VSCODE_MIXIN_REPO).git $(node -p "require('./package.json').distro")
-        displayName: Merge distro
+      - template: ../download-distro.yml
 
   - script: |
       set -e
@@ -72,9 +45,7 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'), ne(variables['NPM_REGISTRY'], 'none'))
     displayName: Setup NPM Registry
 
-  - script: |
-      set -e
-      $(pwd)/build/azure-pipelines/linux/scripts/install-remote-dependencies.sh
+  - script: ./build/azure-pipelines/linux/scripts/install-remote-dependencies.sh
     displayName: Install dependencies
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
@@ -85,10 +56,7 @@ steps:
         displayName: Register Docker QEMU
         condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'arm64'))
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          docker run -e VSCODE_QUALITY -e GITHUB_TOKEN -v $(pwd):/root/vscode -v ~/.netrc:/root/.netrc vscodehub.azurecr.io/vscode-linux-build-agent:centos7-devtoolset8-arm64 /root/vscode/build/azure-pipelines/linux/scripts/install-remote-dependencies.sh
+      - script: docker run -e VSCODE_QUALITY -e GITHUB_TOKEN -v $(pwd):/root/vscode -v ~/.netrc:/root/.netrc vscodehub.azurecr.io/vscode-linux-build-agent:centos7-devtoolset8-arm64 /root/vscode/build/azure-pipelines/linux/scripts/install-remote-dependencies.sh
         displayName: Install dependencies via qemu
         env:
           GITHUB_TOKEN: "$(github-distro-mixin-password)"

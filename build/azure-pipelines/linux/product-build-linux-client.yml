@@ -30,14 +30,12 @@ steps:
           KeyVaultName: vscode-build-secrets
           SecretsFilter: "github-distro-mixin-password,ESRP-PKI,esrp-aad-username,esrp-aad-password"
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - task: DownloadPipelineArtifact@2
         inputs:
           artifact: Compilation
           path: $(Build.ArtifactStagingDirectory)
         displayName: Download compilation output
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - task: DownloadPipelineArtifact@2
         inputs:
           artifact: reh_node_modules-$(VSCODE_ARCH)
@@ -45,7 +43,6 @@ steps:
         displayName: Download server build dependencies
         condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'armhf'))
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - script: |
           set -e
           # Start X server
@@ -56,39 +53,12 @@ steps:
         displayName: Setup system services
         condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'x64'))
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - script: |
           set -e
           tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
         displayName: Extract compilation output
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          cat << EOF > ~/.netrc
-          machine github.com
-          login vscode
-          password $(github-distro-mixin-password)
-          EOF
-
-          git config user.email "vscode@microsoft.com"
-          git config user.name "VSCode"
-        displayName: Prepare tooling
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          git fetch https://github.com/$(VSCODE_MIXIN_REPO).git $VSCODE_DISTRO_REF
-          echo "##vso[task.setvariable variable=VSCODE_DISTRO_COMMIT;]$(git rev-parse FETCH_HEAD)"
-          git checkout FETCH_HEAD
-        condition: and(succeeded(), ne(variables.VSCODE_DISTRO_REF, ' '))
-        displayName: Checkout override commit
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          git pull --no-rebase https://github.com/$(VSCODE_MIXIN_REPO).git $(node -p "require('./package.json').distro")
-        displayName: Merge distro
+      - template: ../download-distro.yml
 
   - script: node build/setup-npm-registry.js $NPM_REGISTRY
     condition: and(succeeded(), ne(variables['NPM_REGISTRY'], 'none'))
@@ -206,9 +176,7 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: |
-      set -e
-      node build/lib/builtInExtensions.js
+  - script: node build/lib/builtInExtensions.js
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
     displayName: Download missing built-in extensions
@@ -230,38 +198,26 @@ steps:
     displayName: Create node_modules archive
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          node build/azure-pipelines/mixin
+      - script: node build/azure-pipelines/mixin
         displayName: Mix in quality
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-            yarn gulp vscode-linux-$(VSCODE_ARCH)-min-ci
+      - script: yarn gulp vscode-linux-$(VSCODE_ARCH)-min-ci
+        env:
+          VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
         displayName: Build
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - script: |
           set -e
-          node build/azure-pipelines/mixin --server
-        displayName: Mix in server quality
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-            yarn gulp vscode-reh-linux-$(VSCODE_ARCH)-min-ci
-          VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-            yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
+          yarn gulp vscode-reh-linux-$(VSCODE_ARCH)-min-ci
+          yarn gulp vscode-reh-web-linux-$(VSCODE_ARCH)-min-ci
+        env:
+          VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
         displayName: Build Server
 
-  - ${{ if eq(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-            yarn gulp "transpile-client-swc" "transpile-extensions"
+  - ${{ else }}:
+      - script: yarn gulp "transpile-client-swc" "transpile-extensions"
+        env:
+          VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
         displayName: Transpile
 
   - ${{ if eq(parameters.VSCODE_BUILD_TUNNEL_CLI, true) }}:

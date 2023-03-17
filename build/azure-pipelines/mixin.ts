@@ -3,16 +3,9 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import * as json from 'gulp-json-editor';
-const buffer = require('gulp-buffer');
-import * as filter from 'gulp-filter';
-import * as es from 'event-stream';
-import * as Vinyl from 'vinyl';
-import * as vfs from 'vinyl-fs';
-import * as fancyLog from 'fancy-log';
-import * as ansiColors from 'ansi-colors';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as cp from 'child_process';
 
 interface IBuiltInExtension {
 	readonly name: string;
@@ -31,87 +24,115 @@ interface Product {
 	readonly webBuiltInExtensions?: IBuiltInExtension[];
 }
 
-async function mixinClient(quality: string): Promise<void> {
-	const productJsonFilter = filter(f => f.relative === 'product.json', { restore: true });
-
-	fancyLog(ansiColors.blue('[mixin]'), `Mixing in client:`);
-
-	return new Promise((c, e) => {
-		vfs
-			.src(`quality/${quality}/**`, { base: `quality/${quality}` })
-			.pipe(filter(f => !f.isDirectory()))
-			.pipe(filter(f => f.relative !== 'product.server.json'))
-			.pipe(productJsonFilter)
-			.pipe(buffer())
-			.pipe(json((o: Product) => {
-				const originalProduct = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'product.json'), 'utf8')) as OSSProduct;
-				let builtInExtensions = originalProduct.builtInExtensions;
-
-				if (Array.isArray(o.builtInExtensions)) {
-					fancyLog(ansiColors.blue('[mixin]'), 'Overwriting built-in extensions:', o.builtInExtensions.map(e => e.name));
-
-					builtInExtensions = o.builtInExtensions;
-				} else if (o.builtInExtensions) {
-					const include = o.builtInExtensions['include'] || [];
-					const exclude = o.builtInExtensions['exclude'] || [];
-
-					fancyLog(ansiColors.blue('[mixin]'), 'OSS built-in extensions:', builtInExtensions.map(e => e.name));
-					fancyLog(ansiColors.blue('[mixin]'), 'Including built-in extensions:', include.map(e => e.name));
-					fancyLog(ansiColors.blue('[mixin]'), 'Excluding built-in extensions:', exclude);
-
-					builtInExtensions = builtInExtensions.filter(ext => !include.find(e => e.name === ext.name) && !exclude.find(name => name === ext.name));
-					builtInExtensions = [...builtInExtensions, ...include];
-
-					fancyLog(ansiColors.blue('[mixin]'), 'Final built-in extensions:', builtInExtensions.map(e => e.name));
-				} else {
-					fancyLog(ansiColors.blue('[mixin]'), 'Inheriting OSS built-in extensions', builtInExtensions.map(e => e.name));
-				}
-
-				return { webBuiltInExtensions: originalProduct.webBuiltInExtensions, ...o, builtInExtensions };
-			}))
-			.pipe(productJsonFilter.restore)
-			.pipe(es.mapSync((f: Vinyl) => {
-				fancyLog(ansiColors.blue('[mixin]'), f.relative, ansiColors.green('✔︎'));
-				return f;
-			}))
-			.pipe(vfs.dest('.'))
-			.on('end', () => c())
-			.on('error', (err: any) => e(err));
-	});
+interface Package {
+	dependencies?: { [namespace: string]: string };
 }
 
-function mixinServer(quality: string) {
-	const serverProductJsonPath = `quality/${quality}/product.server.json`;
-
-	if (!fs.existsSync(serverProductJsonPath)) {
-		fancyLog(ansiColors.blue('[mixin]'), `Server product not found`, serverProductJsonPath);
-		return;
-	}
-
-	fancyLog(ansiColors.blue('[mixin]'), `Mixing in server:`);
-
-	const originalProduct = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'product.json'), 'utf8')) as OSSProduct;
-	const serverProductJson = JSON.parse(fs.readFileSync(serverProductJsonPath, 'utf8'));
-	fs.writeFileSync('product.json', JSON.stringify({ ...originalProduct, ...serverProductJson }, undefined, '\t'));
-	fancyLog(ansiColors.blue('[mixin]'), 'product.json', ansiColors.green('✔︎'));
+function log(...args: any[]): void {
+	console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, ...args);
 }
 
-function main() {
-	const quality = process.env['VSCODE_QUALITY'];
-
+function mixin(quality: string | undefined) {
 	if (!quality) {
-		console.log('Missing VSCODE_QUALITY, skipping mixin');
+		log('[mixin]', 'Missing VSCODE_QUALITY, skipping mixin');
 		return;
 	}
 
-	if (process.argv[2] === '--server') {
-		mixinServer(quality);
-	} else {
-		mixinClient(quality).catch(err => {
-			console.error(err);
-			process.exit(1);
-		});
+	log('[mixin]', `Mixing in distro sources...`);
+
+	const basePath = `distro/mixin/${quality}`;
+
+	for (const name of fs.readdirSync(basePath)) {
+		const distroPath = path.join(basePath, name);
+		const ossPath = path.relative(basePath, distroPath);
+
+		if (ossPath === 'product.json' || ossPath === 'product.server.json') {
+			const distro = JSON.parse(fs.readFileSync(distroPath, 'utf8')) as Product;
+			const oss = JSON.parse(fs.readFileSync(ossPath, 'utf8')) as OSSProduct;
+			let builtInExtensions = oss.builtInExtensions;
+
+			if (Array.isArray(distro.builtInExtensions)) {
+				log('[mixin]', 'Overwriting built-in extensions:', distro.builtInExtensions.map(e => e.name));
+
+				builtInExtensions = distro.builtInExtensions;
+			} else if (distro.builtInExtensions) {
+				const include = distro.builtInExtensions['include'] ?? [];
+				const exclude = distro.builtInExtensions['exclude'] ?? [];
+
+				log('[mixin]', 'OSS built-in extensions:', builtInExtensions.map(e => e.name));
+				log('[mixin]', 'Including built-in extensions:', include.map(e => e.name));
+				log('[mixin]', 'Excluding built-in extensions:', exclude);
+
+				builtInExtensions = builtInExtensions.filter(ext => !include.find(e => e.name === ext.name) && !exclude.find(name => name === ext.name));
+				builtInExtensions = [...builtInExtensions, ...include];
+
+				log('[mixin]', 'Final built-in extensions:', builtInExtensions.map(e => e.name));
+			} else {
+				log('[mixin]', 'Inheriting OSS built-in extensions', builtInExtensions.map(e => e.name));
+			}
+
+			const result = { webBuiltInExtensions: oss.webBuiltInExtensions, ...distro, builtInExtensions };
+			fs.writeFileSync(ossPath, JSON.stringify(result, null, 2), 'utf8');
+		} else {
+			fs.cpSync(distroPath, ossPath, { force: true, recursive: true });
+		}
+
+		log('[mixin]', distroPath, '✔︎');
 	}
 }
 
-main();
+function npm(linuxServer: boolean = false) {
+	log(`[npm] Installing distro npm dependencies...`);
+
+	const basePath = `distro/npm`;
+	const manifestPaths = linuxServer ? [`remote/package.json`] : [
+		`package.json`,
+		`remote/package.json`,
+		`remote/web/package.json`,
+	];
+
+	for (const manifestPath of manifestPaths) {
+		const distroPath = path.join(basePath, manifestPath);
+		const distro = JSON.parse(fs.readFileSync(distroPath, 'utf8')) as Package;
+		const distroBasePath = path.dirname(distroPath);
+
+		const ossPath = path.relative(basePath, distroPath);
+		const ossBasePath = path.dirname(ossPath);
+
+		cp.execSync(`yarn`, { stdio: 'inherit', cwd: distroBasePath });
+
+		for (const dependency of Object.keys(distro.dependencies!)) {
+			fs.cpSync(path.join(distroBasePath, 'node_modules', dependency), path.join(ossBasePath, 'node_modules', dependency), { recursive: true, force: true });
+		}
+
+		const oss = JSON.parse(fs.readFileSync(ossPath, 'utf8')) as Package;
+		oss.dependencies = { ...oss.dependencies, ...distro.dependencies };
+		fs.writeFileSync(ossPath, JSON.stringify(oss, null, 2), 'utf8');
+
+		log('[npm]', distroPath, '✔︎');
+	}
+}
+
+function patches() {
+	log('[patch]', `Applying distro patches...`);
+
+	const basePath = `distro/patches`;
+
+	for (const patch of fs.readdirSync(basePath)) {
+		cp.execSync(`git apply --ignore-whitespace --ignore-space-change ${basePath}/${patch}`, { stdio: 'inherit' });
+		log('[patch]', patch, '✔︎');
+	}
+}
+
+function main(args: string[]) {
+	if (args.includes('--cli')) {
+		patches();
+	} else if (args.includes('--linux-server')) {
+		npm();
+	} else {
+		mixin(process.env['VSCODE_QUALITY']);
+		npm();
+	}
+}
+
+main(process.argv.slice(2));

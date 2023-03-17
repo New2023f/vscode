@@ -57,29 +57,7 @@ stages:
               KeyVaultName: vscode-build-secrets
               SecretsFilter: "github-distro-mixin-password"
 
-          - powershell: |
-              . build/azure-pipelines/win32/exec.ps1
-              $ErrorActionPreference = "Stop"
-              "machine github.com`nlogin vscode`npassword $(github-distro-mixin-password)" | Out-File "$env:USERPROFILE\_netrc" -Encoding ASCII
-
-              exec { git config user.email "vscode@microsoft.com" }
-              exec { git config user.name "VSCode" }
-            displayName: Prepare tooling
-
-          # - powershell: |
-          #     . build/azure-pipelines/win32/exec.ps1
-          #     $ErrorActionPreference = "Stop"
-
-          #     exec { git fetch https://github.com/$(VSCODE_MIXIN_REPO).git $(VSCODE_DISTRO_REF) }
-          #     exec { git checkout FETCH_HEAD }
-          #   condition: and(succeeded(), ne(variables.VSCODE_DISTRO_REF, ' '))
-          #   displayName: Checkout override commit
-
-          - powershell: |
-              . build/azure-pipelines/win32/exec.ps1
-              $ErrorActionPreference = "Stop"
-              exec { git pull --no-rebase https://github.com/$(VSCODE_MIXIN_REPO).git $(node -p "require('./package.json').distro") }
-            displayName: Merge distro
+          - template: ./download-distro.yml
 
           - powershell: |
               . build/azure-pipelines/win32/exec.ps1
@@ -119,6 +97,9 @@ stages:
               CHILD_CONCURRENCY: 1
             displayName: Install dependencies
 
+          - script: node build/azure-pipelines/mixin
+            displayName: Mixin distro
+
           - powershell: |
               . build/azure-pipelines/win32/exec.ps1
               . build/azure-pipelines/win32/retry.ps1
@@ -135,10 +116,7 @@ stages:
             displayName: CodeQL Finalize
             condition: eq(variables['Codeql.enabled'], 'True')
 
-          - powershell: |
-              . build/azure-pipelines/win32/exec.ps1
-              $ErrorActionPreference = "Stop"
-              exec { yarn gulp "vscode-symbols-win32-$(VSCODE_ARCH)" }
+          - powershell: yarn gulp "vscode-symbols-win32-$(VSCODE_ARCH)"
             displayName: Download Symbols
 
           - task: BinSkim@4
@@ -187,30 +165,7 @@ stages:
               KeyVaultName: vscode-build-secrets
               SecretsFilter: "github-distro-mixin-password"
 
-          - script: |
-              set -e
-              cat << EOF > ~/.netrc
-              machine github.com
-              login vscode
-              password $(github-distro-mixin-password)
-              EOF
-
-              git config user.email "vscode@microsoft.com"
-              git config user.name "VSCode"
-            displayName: Prepare tooling
-
-          # - script: |
-          #     set -e
-          #     git fetch https://github.com/$(VSCODE_MIXIN_REPO).git $VSCODE_DISTRO_REF
-          #     echo "##vso[task.setvariable variable=VSCODE_DISTRO_COMMIT;]$(git rev-parse FETCH_HEAD)"
-          #     git checkout FETCH_HEAD
-          #   condition: and(succeeded(), ne(variables.VSCODE_DISTRO_REF, ' '))
-          #   displayName: Checkout override commit
-
-          - script: |
-              set -e
-              git pull --no-rebase https://github.com/$(VSCODE_MIXIN_REPO).git $(node -p "require('./package.json').distro")
-            displayName: Merge distro
+          - template: ./download-distro.yml
 
           - script: |
               set -e
@@ -278,9 +233,10 @@ stages:
               GITHUB_TOKEN: "$(github-distro-mixin-password)"
             displayName: Install dependencies
 
-          - script: |
-              set -e
-              yarn gulp vscode-symbols-linux-$(VSCODE_ARCH)
+          - script: node build/azure-pipelines/mixin
+            displayName: Mixin distro
+
+          - script: yarn gulp vscode-symbols-linux-$(VSCODE_ARCH)
             displayName: Build
 
           - task: BinSkim@3

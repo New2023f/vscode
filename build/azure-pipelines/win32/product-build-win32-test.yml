@@ -9,11 +9,9 @@ parameters:
     type: boolean
 
 steps:
-  - powershell: |
-      . build/azure-pipelines/win32/exec.ps1
-      $ErrorActionPreference = "Stop"
-      $env:VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)"
-      exec { yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install" }
+  - powershell: yarn npm-run-all -lp "electron $(VSCODE_ARCH)" "playwright-install"
+    env:
+      VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
     displayName: Download Electron and Playwright
 
   - ${{ if eq(parameters.VSCODE_RUN_UNIT_TESTS, true) }}:
@@ -21,7 +19,6 @@ steps:
       - powershell: |
           . build/azure-pipelines/win32/exec.ps1
           $ErrorActionPreference = "Stop"
-          exec { yarn electron $(VSCODE_ARCH) }
           exec { .\scripts\test.bat --tfs "Unit Tests" }
         displayName: Run unit tests (Electron)
         timeoutInMinutes: 15

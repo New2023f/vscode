@@ -12,3 +12,5 @@ for i in {1..5}; do # try 5 times
   fi
   echo "Yarn failed $i, trying again..."
 done
+
+node build/azure-pipelines/mixin --linux-server

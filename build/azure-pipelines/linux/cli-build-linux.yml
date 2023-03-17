@@ -58,9 +58,10 @@ steps:
     inputs:
       versionSpec: "16.x"
 
-  - template: ../mixin-distro-posix.yml
-    parameters:
-      VSCODE_QUALITY: ${{ variables.VSCODE_QUALITY }}
+  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - template: ../download-distro.yml
+      - pwsh: node build/azure-pipelines/mixin --cli
+        displayName: Mixin distro
 
   - script: |
       set -e

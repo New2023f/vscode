@@ -4,84 +4,95 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 Object.defineProperty(exports, "__esModule", { value: true });
-const json = require("gulp-json-editor");
-const buffer = require('gulp-buffer');
-const filter = require("gulp-filter");
-const es = require("event-stream");
-const vfs = require("vinyl-fs");
-const fancyLog = require("fancy-log");
-const ansiColors = require("ansi-colors");
 const fs = require("fs");
 const path = require("path");
-async function mixinClient(quality) {
-    const productJsonFilter = filter(f => f.relative === 'product.json', { restore: true });
-    fancyLog(ansiColors.blue('[mixin]'), `Mixing in client:`);
-    return new Promise((c, e) => {
-        vfs
-            .src(`quality/${quality}/**`, { base: `quality/${quality}` })
-            .pipe(filter(f => !f.isDirectory()))
-            .pipe(filter(f => f.relative !== 'product.server.json'))
-            .pipe(productJsonFilter)
-            .pipe(buffer())
-            .pipe(json((o) => {
-            const originalProduct = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'product.json'), 'utf8'));
-            let builtInExtensions = originalProduct.builtInExtensions;
-            if (Array.isArray(o.builtInExtensions)) {
-                fancyLog(ansiColors.blue('[mixin]'), 'Overwriting built-in extensions:', o.builtInExtensions.map(e => e.name));
-                builtInExtensions = o.builtInExtensions;
+const cp = require("child_process");
+function log(...args) {
+    console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, ...args);
+}
+function mixin(quality) {
+    if (!quality) {
+        log('[mixin]', 'Missing VSCODE_QUALITY, skipping mixin');
+        return;
+    }
+    log('[mixin]', `Mixing in distro sources...`);
+    const basePath = `distro/mixin/${quality}`;
+    for (const name of fs.readdirSync(basePath)) {
+        const distroPath = path.join(basePath, name);
+        const ossPath = path.relative(basePath, distroPath);
+        if (ossPath === 'product.json' || ossPath === 'product.server.json') {
+            const distro = JSON.parse(fs.readFileSync(distroPath, 'utf8'));
+            const oss = JSON.parse(fs.readFileSync(ossPath, 'utf8'));
+            let builtInExtensions = oss.builtInExtensions;
+            if (Array.isArray(distro.builtInExtensions)) {
+                log('[mixin]', 'Overwriting built-in extensions:', distro.builtInExtensions.map(e => e.name));
+                builtInExtensions = distro.builtInExtensions;
             }
-            else if (o.builtInExtensions) {
-                const include = o.builtInExtensions['include'] || [];
-                const exclude = o.builtInExtensions['exclude'] || [];
-                fancyLog(ansiColors.blue('[mixin]'), 'OSS built-in extensions:', builtInExtensions.map(e => e.name));
-                fancyLog(ansiColors.blue('[mixin]'), 'Including built-in extensions:', include.map(e => e.name));
-                fancyLog(ansiColors.blue('[mixin]'), 'Excluding built-in extensions:', exclude);
+            else if (distro.builtInExtensions) {
+                const include = distro.builtInExtensions['include'] ?? [];
+                const exclude = distro.builtInExtensions['exclude'] ?? [];
+                log('[mixin]', 'OSS built-in extensions:', builtInExtensions.map(e => e.name));
+                log('[mixin]', 'Including built-in extensions:', include.map(e => e.name));
+                log('[mixin]', 'Excluding built-in extensions:', exclude);
                 builtInExtensions = builtInExtensions.filter(ext => !include.find(e => e.name === ext.name) && !exclude.find(name => name === ext.name));
                 builtInExtensions = [...builtInExtensions, ...include];
-                fancyLog(ansiColors.blue('[mixin]'), 'Final built-in extensions:', builtInExtensions.map(e => e.name));
+                log('[mixin]', 'Final built-in extensions:', builtInExtensions.map(e => e.name));
             }
             else {
-                fancyLog(ansiColors.blue('[mixin]'), 'Inheriting OSS built-in extensions', builtInExtensions.map(e => e.name));
+                log('[mixin]', 'Inheriting OSS built-in extensions', builtInExtensions.map(e => e.name));
             }
-            return { webBuiltInExtensions: originalProduct.webBuiltInExtensions, ...o, builtInExtensions };
-        }))
-            .pipe(productJsonFilter.restore)
-            .pipe(es.mapSync((f) => {
-            fancyLog(ansiColors.blue('[mixin]'), f.relative, ansiColors.green('✔︎'));
-            return f;
-        }))
-            .pipe(vfs.dest('.'))
-            .on('end', () => c())
-            .on('error', (err) => e(err));
-    });
-}
-function mixinServer(quality) {
-    const serverProductJsonPath = `quality/${quality}/product.server.json`;
-    if (!fs.existsSync(serverProductJsonPath)) {
-        fancyLog(ansiColors.blue('[mixin]'), `Server product not found`, serverProductJsonPath);
-        return;
+            const result = { webBuiltInExtensions: oss.webBuiltInExtensions, ...distro, builtInExtensions };
+            fs.writeFileSync(ossPath, JSON.stringify(result, null, 2), 'utf8');
+        }
+        else {
+            fs.cpSync(distroPath, ossPath, { force: true, recursive: true });
+        }
+        log('[mixin]', distroPath, '✔︎');
     }
-    fancyLog(ansiColors.blue('[mixin]'), `Mixing in server:`);
-    const originalProduct = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'product.json'), 'utf8'));
-    const serverProductJson = JSON.parse(fs.readFileSync(serverProductJsonPath, 'utf8'));
-    fs.writeFileSync('product.json', JSON.stringify({ ...originalProduct, ...serverProductJson }, undefined, '\t'));
-    fancyLog(ansiColors.blue('[mixin]'), 'product.json', ansiColors.green('✔︎'));
 }
-function main() {
-    const quality = process.env['VSCODE_QUALITY'];
-    if (!quality) {
-        console.log('Missing VSCODE_QUALITY, skipping mixin');
-        return;
+function npm(linuxServer = false) {
+    log(`[npm] Installing distro npm dependencies...`);
+    const basePath = `distro/npm`;
+    const manifestPaths = linuxServer ? [`remote/package.json`] : [
+        `package.json`,
+        `remote/package.json`,
+        `remote/web/package.json`,
+    ];
+    for (const manifestPath of manifestPaths) {
+        const distroPath = path.join(basePath, manifestPath);
+        const distro = JSON.parse(fs.readFileSync(distroPath, 'utf8'));
+        const distroBasePath = path.dirname(distroPath);
+        const ossPath = path.relative(basePath, distroPath);
+        const ossBasePath = path.dirname(ossPath);
+        cp.execSync(`yarn`, { stdio: 'inherit', cwd: distroBasePath });
+        for (const dependency of Object.keys(distro.dependencies)) {
+            fs.cpSync(path.join(distroBasePath, 'node_modules', dependency), path.join(ossBasePath, 'node_modules', dependency), { recursive: true, force: true });
+        }
+        const oss = JSON.parse(fs.readFileSync(ossPath, 'utf8'));
+        oss.dependencies = { ...oss.dependencies, ...distro.dependencies };
+        fs.writeFileSync(ossPath, JSON.stringify(oss, null, 2), 'utf8');
+        log('[npm]', distroPath, '✔︎');
     }
-    if (process.argv[2] === '--server') {
-        mixinServer(quality);
+}
+function patches() {
+    log('[patch]', `Applying distro patches...`);
+    const basePath = `distro/patches`;
+    for (const patch of fs.readdirSync(basePath)) {
+        cp.execSync(`git apply --ignore-whitespace --ignore-space-change ${basePath}/${patch}`, { stdio: 'inherit' });
+        log('[patch]', patch, '✔︎');
+    }
+}
+function main(args) {
+    if (args.includes('--cli')) {
+        patches();
+    }
+    else if (args.includes('--linux-server')) {
+        npm();
     }
     else {
-        mixinClient(quality).catch(err => {
-            console.error(err);
-            process.exit(1);
-        });
+        mixin(process.env['VSCODE_QUALITY']);
+        npm();
     }
 }
-main();
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWl4aW4uanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJtaXhpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7OztnR0FHZ0c7O0FBRWhHLHlDQUF5QztBQUN6QyxNQUFNLE1BQU0sR0FBRyxPQUFPLENBQUMsYUFBYSxDQUFDLENBQUM7QUFDdEMsc0NBQXNDO0FBQ3RDLG1DQUFtQztBQUVuQyxnQ0FBZ0M7QUFDaEMsc0NBQXNDO0FBQ3RDLDBDQUEwQztBQUMxQyx5QkFBeUI7QUFDekIsNkJBQTZCO0FBbUI3QixLQUFLLFVBQVUsV0FBVyxDQUFDLE9BQWU7SUFDekMsTUFBTSxpQkFBaUIsR0FBRyxNQUFNLENBQUMsQ0FBQyxDQUFDLEVBQUUsQ0FBQyxDQUFDLENBQUMsUUFBUSxLQUFLLGNBQWMsRUFBRSxFQUFFLE9BQU8sRUFBRSxJQUFJLEVBQUUsQ0FBQyxDQUFDO0lBRXhGLFFBQVEsQ0FBQyxVQUFVLENBQUMsSUFBSSxDQUFDLFNBQVMsQ0FBQyxFQUFFLG1CQUFtQixDQUFDLENBQUM7SUFFMUQsT0FBTyxJQUFJLE9BQU8sQ0FBQyxDQUFDLENBQUMsRUFBRSxDQUFDLEVBQUUsRUFBRTtRQUMzQixHQUFHO2FBQ0QsR0FBRyxDQUFDLFdBQVcsT0FBTyxLQUFLLEVBQUUsRUFBRSxJQUFJLEVBQUUsV0FBVyxPQUFPLEVBQUUsRUFBRSxDQUFDO2FBQzVELElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQyxDQUFDLEVBQUUsQ0FBQyxDQUFDLENBQUMsQ0FBQyxXQUFXLEVBQUUsQ0FBQyxDQUFDO2FBQ25DLElBQUksQ0FBQyxNQUFNLENBQUMsQ0FBQyxDQUFDLEVBQUUsQ0FBQyxDQUFDLENBQUMsUUFBUSxLQUFLLHFCQUFxQixDQUFDLENBQUM7YUFDdkQsSUFBSSxDQUFDLGlCQUFpQixDQUFDO2FBQ3ZCLElBQUksQ0FBQyxNQUFNLEVBQUUsQ0FBQzthQUNkLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFVLEVBQUUsRUFBRTtZQUN6QixNQUFNLGVB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
+main(process.argv.slice(2));
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWl4aW4uanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJtaXhpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7OztnR0FHZ0c7O0FBRWhHLHlCQUF5QjtBQUN6Qiw2QkFBNkI7QUFDN0Isb0NBQW9DO0FBdUJwQyxTQUFTLEdBQUcsQ0FBQyxHQUFHLElBQVc7SUFDMUIsT0FBTyxDQUFDLEdBQUcsQ0FBQyxJQUFJLElBQUksSUFBSSxFQUFFLENBQUMsa0JBQWtCLENBQUMsSUFBSSxFQUFFLEVBQUUsTUFBTSxFQUFFLEtBQUssRUFBRSxDQUFDLEdBQUcsRUFBRSxHQUFHLElBQUksQ0FBQyxDQUFDO0FBQ3JGLENBQUM7QUFFRCxTQUFTLEtBQUssQ0FBQyxPQUEyQjtJQUN6QyxJQUFJLENBQUMsT0FBTyxFQUFFO1FBQ2IsR0FBRyxDQUFDLFNBQVMsRUFBRSx3Q0FBd0MsQ0FBQyxDQUFDO1FBQ3pELE9BQU87S0FDUDtJQUVELEdBQUcsQ0FBQyxTQUFTLEVBQUUsNkJBQTZCLENBQUMsQ0FBQztJQUU5QyxNQUFNLFFBQVEsR0FBRyxnQkFBZ0IsT0FBTyxFQUFFLENBQUM7SUFFM0MsS0FBSyxNQUFNLElBQUksSUFBSSxFQUFFLENBQUMsV0FBVyxDQUFDLFFBQVEsQ0FBQyxFQUFFO1FBQzVDLE1BQU0sVUFBVSxHQUFHLElBQUksQ0FBQyxJQUFJLENBQUMsUUFBUSxFQUFFLElBQUksQ0FBQyxDQUFDO1FBQzdDLE1BQU0sT0FBTyxHQUFHLElBQUksQ0FBQyxRQUFRLENBQUMsUUFBUSxFQUFFLFVBQVUsQ0FBQyxDQUFDO1FBRXBELElBQUksT0FBTyxLQUFLLGNBQWMsSUFBSSxPQUFPLEtBQUsscUJBQXFCLEVBQUU7WUFDcEUsTUFBTSxNQUFNLEdBQUcsSUFBSSxDQUFDLEtBQUssQ0FBQyxFQUFFLENBQUMsWUFBWSxDQUFDLFVBQVUsRUFBRSxNQUFNLENBQUMsQ0FBWSxDQUFDO1lBQzFFLE1BQU0sR0FBRyxHQUFHLElBQUksQ0FBQyxLQUFLLENBQUMsRUFB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

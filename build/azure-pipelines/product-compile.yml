@@ -7,9 +7,12 @@ steps:
     inputs:
       versionSpec: "16.x"
 
-  - template: ./mixin-distro-posix.yml
-    parameters:
-      VSCODE_QUALITY: ${{ parameters.VSCODE_QUALITY }}
+  - task: AzureKeyVault@1
+    displayName: "Azure Key Vault: Get Secrets"
+    inputs:
+      azureSubscription: "vscode-builds-subscription"
+      KeyVaultName: vscode-build-secrets
+      SecretsFilter: "github-distro-mixin-password"
 
   - script: node build/setup-npm-registry.js $NPM_REGISTRY
     condition: and(succeeded(), ne(variables['NPM_REGISTRY'], 'none'))
@@ -96,15 +99,11 @@ steps:
     displayName: Create node_modules archive
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      # Mixin must run before optimize, because the CSS loader will inline small SVGs
-      - script: |
-          set -e
-          node build/azure-pipelines/mixin
-        displayName: Mix in quality
+      - template: ./download-distro.yml
+      - script: node build/azure-pipelines/mixin
+        displayName: Mixin distro
 
-  - script: |
-      set -e
-      yarn npm-run-all -lp core-ci extensions-ci hygiene eslint valid-layers-check vscode-dts-compile-check tsec-compile-check
+  - script: yarn npm-run-all -lp core-ci extensions-ci hygiene eslint valid-layers-check vscode-dts-compile-check tsec-compile-check
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
     displayName: Compile & Hygiene
@@ -147,15 +146,11 @@ steps:
         displayName: Upload sourcemaps
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -
-          ./build/azure-pipelines/common/extract-telemetry.sh
+      - script: ./build/azure-pipelines/common/extract-telemetry.sh
         displayName: Extract Telemetry
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          tar -cz --ignore-failed-read -f $(Build.ArtifactStagingDirectory)/compilation.tar.gz .build out-* test/integration/browser/out test/smoke/out test/automation/out
+      - script: tar -cz --ignore-failed-read -f $(Build.ArtifactStagingDirectory)/compilation.tar.gz .build out-* test/integration/browser/out test/smoke/out test/automation/out
         displayName: Compress compilation artifact
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
@@ -166,10 +161,9 @@ steps:
         displayName: Publish compilation artifact
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: |
-          set -e
-          VSCODE_MIXIN_PASSWORD="$(github-distro-mixin-password)" \
-            yarn download-builtin-extensions-cg
+      - script: yarn download-builtin-extensions-cg
+        env:
+          VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
         displayName: Built-in extensions component details
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:

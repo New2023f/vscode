@@ -10,31 +10,6 @@ steps:
       KeyVaultName: vscode-build-secrets
       SecretsFilter: "github-distro-mixin-password,ESRP-PKI,esrp-aad-username,esrp-aad-password"
 
-  - script: |
-      set -e
-      cat << EOF > ~/.netrc
-      machine github.com
-      login vscode
-      password $(github-distro-mixin-password)
-      EOF
-
-      git config user.email "vscode@microsoft.com"
-      git config user.name "VSCode"
-    displayName: Prepare tooling
-
-  - script: |
-      set -e
-      git fetch https://github.com/$(VSCODE_MIXIN_REPO).git $VSCODE_DISTRO_REF
-      echo "##vso[task.setvariable variable=VSCODE_DISTRO_COMMIT;]$(git rev-parse FETCH_HEAD)"
-      git checkout FETCH_HEAD
-    condition: and(succeeded(), ne(variables.VSCODE_DISTRO_REF, ' '))
-    displayName: Checkout override commit
-
-  - script: |
-      set -e
-      git pull --no-rebase https://github.com/$(VSCODE_MIXIN_REPO).git $(node -p "require('./package.json').distro")
-    displayName: Merge distro
-
   - script: node build/setup-npm-registry.js $NPM_REGISTRY
     condition: and(succeeded(), ne(variables['NPM_REGISTRY'], 'none'))
     displayName: Setup NPM Registry
@@ -58,16 +33,11 @@ steps:
       path: .build/builtInExtensions
     displayName: Restore built-in extensions
 
-  - script: |
-      set -e
-      tar -xzf .build/node_modules_cache/cache.tgz
+  - script: tar -xzf .build/node_modules_cache/cache.tgz
     displayName: Extract node_modules cache
     condition: and(succeeded(), eq(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: |
-      set -e
-      npm install -g node-gyp@latest
-      node-gyp --version
+  - script: npm install -g node-gyp@latest && node-gyp --version
     displayName: Update node-gyp
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
@@ -105,9 +75,7 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: |
-      set -e
-      node build/lib/builtInExtensions.js
+  - script: node build/lib/builtInExtensions.js
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
     displayName: Download missing built-in extensions

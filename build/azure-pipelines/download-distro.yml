@@ -1,0 +1,20 @@
+steps:
+  - task: AzureKeyVault@1
+    displayName: "Azure Key Vault: Get Secrets"
+    inputs:
+      azureSubscription: "vscode-builds-subscription"
+      KeyVaultName: vscode-build-secrets
+      SecretsFilter: "github-distro-mixin-password"
+
+  - pwsh: |
+      $ArchivePath = "$(Agent.TempDirectory)/distro.zip"
+      $PackageJson = Get-Content -Path package.json -Raw | ConvertFrom-Json
+      $DistroVersion = $PackageJson.distro
+
+      Invoke-WebRequest -Uri "https://api.github.com/repos/microsoft/vscode-distro/zipball/$DistroVersion" `
+        -OutFile $ArchivePath `
+        -Headers @{ "Accept" = "application/vnd.github+json"; "Authorization" = "Bearer $(github-distro-mixin-password)"; "X-GitHub-Api-Version" = "2022-11-28" }
+
+      Expand-Archive -Path $ArchivePath -DestinationPath $(Build.SourcesDirectory)
+      Rename-Item -Path "$(Build.SourcesDirectory)/microsoft-vscode-distro-$DistroVersion" -NewName distro
+    displayName: Download distro

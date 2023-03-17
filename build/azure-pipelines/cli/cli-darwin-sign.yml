@@ -4,6 +4,13 @@ parameters:
     default: []
 
 steps:
+  - task: AzureKeyVault@1
+    displayName: "Azure Key Vault: Get Secrets"
+    inputs:
+      azureSubscription: "vscode-builds-subscription"
+      KeyVaultName: vscode-build-secrets
+      SecretsFilter: "ESRP-PKI,esrp-aad-username,esrp-aad-password"
+
   - task: UseDotNet@2
     inputs:
       version: 2.x

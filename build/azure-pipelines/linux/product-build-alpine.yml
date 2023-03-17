@@ -30,30 +30,7 @@ steps:
       imageName: "vscode-linux-build-agent:alpine-$(VSCODE_ARCH)"
       containerCommand: uname
 
-  - script: |
-      set -e
-      cat << EOF > ~/.netrc
-      machine github.com
-      login vscode
-      password $(github-distro-mixin-password)
-      EOF
-
-      git config user.email "vscode@microsoft.com"
-      git config user.name "VSCode"
-    displayName: Prepare tooling
-
-  - script: |
-      set -e
-      git fetch https://github.com/$(VSCODE_MIXIN_REPO).git $VSCODE_DISTRO_REF
-      echo "##vso[task.setvariable variable=VSCODE_DISTRO_COMMIT;]$(git rev-parse FETCH_HEAD)"
-      git checkout FETCH_HEAD
-    condition: and(succeeded(), ne(variables.VSCODE_DISTRO_REF, ' '))
-    displayName: Checkout override commit
-
-  - script: |
-      set -e
-      git pull --no-rebase https://github.com/$(VSCODE_MIXIN_REPO).git $(node -p "require('./package.json').distro")
-    displayName: Merge distro
+  - template: ../download-distro.yml
 
   - script: node build/setup-npm-registry.js $NPM_REGISTRY
     condition: and(succeeded(), ne(variables['NPM_REGISTRY'], 'none'))
@@ -118,9 +95,7 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: |
-      set -e
-      node build/lib/builtInExtensions.js
+  - script: node build/lib/builtInExtensions.js
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
     displayName: Download missing built-in extensions
@@ -133,19 +108,11 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Create node_modules archive
 
-  - script: |
-      set -e
-      node build/azure-pipelines/mixin
-      node build/azure-pipelines/mixin --server
-    displayName: Mix in quality
-
   - script: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
     displayName: "Register Docker QEMU"
     condition: eq(variables['VSCODE_ARCH'], 'arm64')
 
-  - script: |
-      set -e
-      docker run -e VSCODE_QUALITY -e GITHUB_TOKEN -v $(pwd):/root/vscode -v ~/.netrc:/root/.netrc vscodehub.azurecr.io/vscode-linux-build-agent:alpine-$(VSCODE_ARCH) /root/vscode/build/azure-pipelines/linux/scripts/install-remote-dependencies.sh
+  - script: docker run -e VSCODE_QUALITY -e GITHUB_TOKEN -v $(pwd):/root/vscode -v ~/.netrc:/root/.netrc vscodehub.azurecr.io/vscode-linux-build-agent:alpine-$(VSCODE_ARCH) /root/vscode/build/azure-pipelines/linux/scripts/install-remote-dependencies.sh
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
     displayName: Prebuild
