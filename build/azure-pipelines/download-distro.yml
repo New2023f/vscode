@@ -37,10 +37,7 @@ steps:
 
   - ${{ else }}:
       - pwsh: |
-          echo $Home/_netrc
-          echo $env:USERPROFILE/_netrc
           "machine github.com`nlogin vscode`npassword $(github-distro-mixin-password)" | Out-File "$Home/_netrc" -Encoding ASCII
-          cat $Home/_netrc
         displayName: Setup distro auth
 
       - pwsh: |
