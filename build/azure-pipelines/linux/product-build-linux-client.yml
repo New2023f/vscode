@@ -23,6 +23,8 @@ steps:
       versionSpec: "16.x"
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - template: ../download-distro.yml
+
       - task: AzureKeyVault@1
         displayName: "Azure Key Vault: Get Secrets"
         inputs:
@@ -57,8 +59,6 @@ steps:
           set -e
           tar -xzf $(Build.ArtifactStagingDirectory)/compilation.tar.gz
         displayName: Extract compilation output
-
-      - template: ../download-distro.yml
 
   - script: node build/setup-npm-registry.js $NPM_REGISTRY
     condition: and(succeeded(), ne(variables['NPM_REGISTRY'], 'none'))

@@ -7,6 +7,9 @@ steps:
     inputs:
       versionSpec: "16.x"
 
+  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - template: ./download-distro.yml
+
   - task: AzureKeyVault@1
     displayName: "Azure Key Vault: Get Secrets"
     inputs:
@@ -99,7 +102,6 @@ steps:
     displayName: Create node_modules archive
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - template: ./download-distro.yml
       - script: node build/azure-pipelines/mixin
         displayName: Mixin distro
 

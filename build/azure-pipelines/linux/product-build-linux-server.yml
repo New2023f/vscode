@@ -8,6 +8,8 @@ steps:
       versionSpec: "16.x"
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - template: ../download-distro.yml
+
       - task: AzureKeyVault@1
         displayName: "Azure Key Vault: Get Secrets"
         inputs:
@@ -24,8 +26,6 @@ steps:
           imageName: "vscode-linux-build-agent:centos7-devtoolset8-arm64"
           containerCommand: uname
         condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'arm64'))
-
-      - template: ../download-distro.yml
 
   - script: |
       set -e

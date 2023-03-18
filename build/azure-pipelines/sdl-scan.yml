@@ -50,14 +50,14 @@ stages:
             inputs:
               versionSpec: "16.x"
 
+          - template: ./download-distro.yml
+
           - task: AzureKeyVault@1
             displayName: "Azure Key Vault: Get Secrets"
             inputs:
               azureSubscription: "vscode-builds-subscription"
               KeyVaultName: vscode-build-secrets
               SecretsFilter: "github-distro-mixin-password"
-
-          - template: ./download-distro.yml
 
           - powershell: |
               . build/azure-pipelines/win32/exec.ps1
@@ -158,14 +158,14 @@ stages:
             inputs:
               versionSpec: "16.x"
 
+          - template: ./download-distro.yml
+
           - task: AzureKeyVault@1
             displayName: "Azure Key Vault: Get Secrets"
             inputs:
               azureSubscription: "vscode-builds-subscription"
               KeyVaultName: vscode-build-secrets
               SecretsFilter: "github-distro-mixin-password"
-
-          - template: ./download-distro.yml
 
           - script: |
               set -e

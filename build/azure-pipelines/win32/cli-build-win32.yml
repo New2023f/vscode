@@ -12,6 +12,11 @@ parameters:
     type: string
 
 steps:
+  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - template: ../download-distro.yml
+        parameters:
+          pwsh: true
+
   - task: Npm@1
     displayName: Download openssl prebuilt
     inputs:
@@ -31,9 +36,6 @@ steps:
       versionSpec: "16.x"
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - template: ../download-distro.yml
-        parameters:
-          pwsh: true
       - pwsh: node build/azure-pipelines/mixin --cli
         displayName: Mixin distro
 
