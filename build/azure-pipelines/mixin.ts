@@ -68,7 +68,7 @@ function mixin(quality: string | undefined) {
 			}
 
 			const result = { webBuiltInExtensions: oss.webBuiltInExtensions, ...distro, builtInExtensions };
-			fs.writeFileSync(ossPath, JSON.stringify(result, null, 2), 'utf8');
+			fs.writeFileSync(ossPath, JSON.stringify(result, null, '\t'), 'utf8');
 		} else {
 			fs.cpSync(distroPath, ossPath, { force: true, recursive: true });
 		}
