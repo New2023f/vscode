@@ -86,6 +86,7 @@ steps:
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - script: node build/azure-pipelines/distro/mixin-npm
+        condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
         displayName: Mixin distro node modules
 
   - script: |
