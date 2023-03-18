@@ -388,7 +388,6 @@ stages:
                 steps:
                   - template: linux/product-build-linux-server.yml
                     parameters:
-                      bash: true
                       VSCODE_QUALITY: ${{ variables.VSCODE_QUALITY }}
 
           - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_LINUX_ARM64, true)) }}:

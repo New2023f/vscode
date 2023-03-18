@@ -26,6 +26,8 @@ steps:
         condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'arm64'))
 
       - template: ../download-distro.yml
+        parameters:
+          bash: true
 
   - script: |
       set -e
