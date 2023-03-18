@@ -13,7 +13,7 @@ parameters:
 
 steps:
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - template: ../download-distro.yml
+      - template: ../distro/download-distro.yml
         parameters:
           pwsh: true
 

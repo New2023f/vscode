@@ -3,7 +3,7 @@ steps:
     inputs:
       versionSpec: "16.x"
 
-  - template: ../download-distro.yml
+  - template: ../distro/download-distro.yml
 
   - task: AzureKeyVault@1
     displayName: "Azure Key Vault: Get Secrets"

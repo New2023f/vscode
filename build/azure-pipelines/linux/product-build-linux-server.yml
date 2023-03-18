@@ -8,7 +8,7 @@ steps:
       versionSpec: "16.x"
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - template: ../download-distro.yml
+      - template: ../distro/download-distro.yml
 
       - task: AzureKeyVault@1
         displayName: "Azure Key Vault: Get Secrets"
