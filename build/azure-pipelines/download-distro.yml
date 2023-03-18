@@ -1,3 +1,8 @@
+parameters:
+  - name: bash
+    type: boolean
+    default: false
+
 steps:
   - task: AzureKeyVault@1
     displayName: "Azure Key Vault: Get Secrets"
@@ -6,15 +11,45 @@ steps:
       KeyVaultName: vscode-build-secrets
       SecretsFilter: "github-distro-mixin-password"
 
-  - pwsh: |
-      $ArchivePath = "$(Agent.TempDirectory)/distro.zip"
-      $PackageJson = Get-Content -Path package.json -Raw | ConvertFrom-Json
-      $DistroVersion = $PackageJson.distro
+  - ${{ if parameters.bash }}:
+      - bash: |
+          cat << EOF > ~/.netrc
+          machine github.com
+          login vscode
+          password $(github-distro-mixin-password)
+          EOF
+        displayName: Setup distro auth
 
-      Invoke-WebRequest -Uri "https://api.github.com/repos/microsoft/vscode-distro/zipball/$DistroVersion" `
-        -OutFile $ArchivePath `
-        -Headers @{ "Accept" = "application/vnd.github+json"; "Authorization" = "Bearer $(github-distro-mixin-password)"; "X-GitHub-Api-Version" = "2022-11-28" }
+      - bash: |
+        set -e
+        ArchivePath="$(Agent.TempDirectory)/distro.zip"
+        $DistroVersion = $(node -p "require('./package.json').distro")
 
-      Expand-Archive -Path $ArchivePath -DestinationPath $(Build.SourcesDirectory)
-      Rename-Item -Path "$(Build.SourcesDirectory)/microsoft-vscode-distro-$DistroVersion" -NewName distro
-    displayName: Download distro
+        curl -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $(github-distro-mixin-password)" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          -o $ArchivePath \
+          -L "https://api.github.com/repos/microsoft/vscode-distro/zipball/$DistroVersion"
+
+        unzip $ArchivePath -d "$(Build.SourcesDirectory)"
+        mv "$(Build.SourcesDirectory)/microsoft-vscode-distro-$DistroVersion" "$(Build.SourcesDirectory)/distro"
+      displayName: Download distro
+
+  - ${{ else }}:
+      - pwsh: |
+          "machine github.com`nlogin vscode`npassword $(github-distro-mixin-password)" | Out-File "$env:USERPROFILE\_netrc" -Encoding ASCII
+        displayName: Setup distro auth
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          $ArchivePath = "$(Agent.TempDirectory)/distro.zip"
+          $PackageJson = Get-Content -Path package.json -Raw | ConvertFrom-Json
+          $DistroVersion = $PackageJson.distro
+
+          Invoke-WebRequest -Uri "https://api.github.com/repos/microsoft/vscode-distro/zipball/$DistroVersion" `
+            -OutFile $ArchivePath `
+            -Headers @{ "Accept" = "application/vnd.github+json"; "Authorization" = "Bearer $(github-distro-mixin-password)"; "X-GitHub-Api-Version" = "2022-11-28" }
+
+          Expand-Archive -Path $ArchivePath -DestinationPath $(Build.SourcesDirectory)
+          Rename-Item -Path "$(Build.SourcesDirectory)/microsoft-vscode-distro-$DistroVersion" -NewName distro
+        displayName: Download distro
