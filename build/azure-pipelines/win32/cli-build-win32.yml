@@ -16,6 +16,8 @@ steps:
       - template: ../distro/download-distro.yml
         parameters:
           pwsh: true
+      - pwsh: node build/azure-pipelines/distro/apply-patches
+        displayName: Apply distro patches
 
   - task: Npm@1
     displayName: Download openssl prebuilt
@@ -34,10 +36,6 @@ steps:
   - task: NodeTool@0
     inputs:
       versionSpec: "16.x"
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - pwsh: node build/azure-pipelines/mixin --cli
-        displayName: Mixin distro
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
