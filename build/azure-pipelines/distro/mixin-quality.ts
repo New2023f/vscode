@@ -5,7 +5,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as cp from 'child_process';
 
 interface IBuiltInExtension {
 	readonly name: string;
@@ -25,16 +24,17 @@ interface Product {
 }
 
 function log(...args: any[]): void {
-	console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, ...args);
+	console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, '[distro]', ...args);
 }
 
-function mixin(quality: string | undefined) {
+function main() {
+	const quality = process.env['VSCODE_QUALITY'];
+
 	if (!quality) {
-		log('[mixin]', 'Missing VSCODE_QUALITY, skipping mixin');
-		return;
+		throw new Error('Missing VSCODE_QUALITY, skipping mixin');
 	}
 
-	log('[mixin]', `Mixing in distro sources...`);
+	log('[mixin]', `Mixing in distro quality...`);
 
 	const basePath = `.build/distro/mixin/${quality}`;
 
@@ -77,32 +77,4 @@ function mixin(quality: string | undefined) {
 	}
 }
 
-function npm() {
-	log(`[npm] Installing distro npm dependencies...`);
-	cp.execSync(`yarn`, { stdio: 'inherit', cwd: '.build/distro/npm' });
-	log('[npm] ✔︎');
-}
-
-function patches() {
-	log('[patch]', `Applying distro patches...`);
-
-	const basePath = `.build/distro/patches`;
-
-	for (const patch of fs.readdirSync(basePath)) {
-		cp.execSync(`git apply --ignore-whitespace --ignore-space-change ${basePath}/${patch}`, { stdio: 'inherit' });
-		log('[patch]', patch, '✔︎');
-	}
-}
-
-function main(args: string[]) {
-	if (args.includes('--cli')) {
-		patches();
-	} else if (args.includes('--linux-server')) {
-		npm();
-	} else {
-		mixin(process.env['VSCODE_QUALITY']);
-		npm();
-	}
-}
-
-main(process.argv.slice(2));
+main();
