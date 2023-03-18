@@ -33,10 +33,6 @@ steps:
     inputs:
       versionSpec: "16.x"
 
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - pwsh: node build/azure-pipelines/mixin --cli
-        displayName: Mixin distro
-
   - script: |
       set -e
       node build/azure-pipelines/cli/prepare.js
