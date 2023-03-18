@@ -48,6 +48,8 @@ steps:
           cleanDestinationFolder: false
 
       - template: ../download-distro.yml
+        parameters:
+          pwsh: true
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1

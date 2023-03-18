@@ -32,6 +32,8 @@ steps:
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - template: ../download-distro.yml
+        parameters:
+          pwsh: true
       - pwsh: node build/azure-pipelines/mixin --cli
         displayName: Mixin distro
 

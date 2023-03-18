@@ -100,8 +100,6 @@ steps:
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
       - template: ./download-distro.yml
-        parameters:
-          bash: true
       - script: node build/azure-pipelines/mixin
         displayName: Mixin distro
 

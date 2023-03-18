@@ -1,5 +1,5 @@
 parameters:
-  - name: bash
+  - name: pwsh
     type: boolean
     default: false
 
@@ -11,7 +11,7 @@ steps:
       KeyVaultName: vscode-build-secrets
       SecretsFilter: "github-distro-mixin-password"
 
-  - ${{ if parameters.bash }}:
+  - ${{ if parameters.pwsh }}:
       - script: |
           cat << EOF > ~/.netrc
           machine github.com
