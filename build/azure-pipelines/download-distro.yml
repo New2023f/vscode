@@ -23,7 +23,7 @@ steps:
       - script: |
           set -e
           ArchivePath="$(Agent.TempDirectory)/distro.zip"
-          $DistroVersion=$(node -p "require('./package.json').distro")
+          DistroVersion=$(node -p "require('./package.json').distro")
 
           curl -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $(github-distro-mixin-password)" \
