@@ -12,7 +12,7 @@ steps:
       SecretsFilter: "github-distro-mixin-password"
 
   - ${{ if parameters.bash }}:
-      - bash: |
+      - script: |
           cat << EOF > ~/.netrc
           machine github.com
           login vscode
@@ -20,7 +20,7 @@ steps:
           EOF
         displayName: Setup distro auth
 
-      - bash: |
+      - script: |
           set -e
           ArchivePath="$(Agent.TempDirectory)/distro.zip"
           $DistroVersion = $(node -p "require('./package.json').distro")
