@@ -152,7 +152,7 @@ steps:
         displayName: Extract Telemetry
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: tar -cz --ignore-failed-read -f $(Build.ArtifactStagingDirectory)/compilation.tar.gz .build out-* test/integration/browser/out test/smoke/out test/automation/out
+      - script: tar -cz --ignore-failed-read --exclude='.build/node_modules_cache' --exclude='.build/node_modules_list.txt' --exclude='.build/distro' -f $(Build.ArtifactStagingDirectory)/compilation.tar.gz .build out-* test/integration/browser/out test/smoke/out test/automation/out
         displayName: Compress compilation artifact
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
