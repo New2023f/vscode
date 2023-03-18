@@ -19,6 +19,9 @@ parameters:
 
 steps:
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - ${{ if or(eq(parameters.VSCODE_BUILD_ALPINE_ARM64, true)) }}:
+          - bash: sudo apt update && sudo apt install -y unzip
+            displayName: Install unzip
       - template: ../distro/download-distro.yml
       - script: node build/azure-pipelines/distro/apply-patches
         displayName: Apply distro patches
@@ -48,15 +51,11 @@ steps:
       displayName: Install musl build dependencies
 
   - ${{ if eq(parameters.VSCODE_BUILD_LINUX_ARMHF, true) }}:
-    - bash: |
-        set -e
-        sudo apt-get install -yq gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+    - bash: sudo apt-get install -yq gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
       displayName: Install arm32 toolchains
 
   - ${{ if eq(parameters.VSCODE_BUILD_LINUX_ARM64, true) }}:
-    - bash: |
-        set -e
-        sudo apt-get install -yq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+    - bash: sudo apt-get install -yq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
       displayName: Install arm64 toolchains
 
   - task: NodeTool@0

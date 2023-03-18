@@ -211,9 +211,7 @@ stages:
                 displayName: Install Node.js
                 inputs:
                   versionSpec: 16.x
-              - script: |
-                  set -e
-                  npm install -g yarn
+              - script: npm install -g yarn
                 displayName: Install yarn
               - template: ./linux/cli-build-linux.yml
                 parameters:
