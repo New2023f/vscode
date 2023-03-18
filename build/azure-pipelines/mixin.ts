@@ -24,10 +24,6 @@ interface Product {
 	readonly webBuiltInExtensions?: IBuiltInExtension[];
 }
 
-interface Package {
-	dependencies?: { [namespace: string]: string };
-}
-
 function log(...args: any[]): void {
 	console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, ...args);
 }
@@ -81,36 +77,10 @@ function mixin(quality: string | undefined) {
 	}
 }
 
-function npm(linuxServer: boolean = false) {
+function npm() {
 	log(`[npm] Installing distro npm dependencies...`);
-
-	const basePath = `distro/npm`;
-	const manifestPaths = linuxServer ? [`remote/package.json`] : [
-		`package.json`,
-		`remote/package.json`,
-		`remote/web/package.json`,
-	];
-
-	for (const manifestPath of manifestPaths) {
-		const distroPath = path.join(basePath, manifestPath);
-		const distro = JSON.parse(fs.readFileSync(distroPath, 'utf8')) as Package;
-		const distroBasePath = path.dirname(distroPath);
-
-		const ossPath = path.relative(basePath, distroPath);
-		const ossBasePath = path.dirname(ossPath);
-
-		cp.execSync(`yarn`, { stdio: 'inherit', cwd: distroBasePath });
-
-		for (const dependency of Object.keys(distro.dependencies!)) {
-			fs.cpSync(path.join(distroBasePath, 'node_modules', dependency), path.join(ossBasePath, 'node_modules', dependency), { recursive: true, force: true });
-		}
-
-		const oss = JSON.parse(fs.readFileSync(ossPath, 'utf8')) as Package;
-		oss.dependencies = { ...oss.dependencies, ...distro.dependencies };
-		fs.writeFileSync(ossPath, JSON.stringify(oss, null, 2), 'utf8');
-
-		log('[npm]', distroPath, '✔︎');
-	}
+	cp.execSync(`yarn`, { stdio: 'inherit', cwd: 'distro/npm' });
+	log('[npm] ✔︎');
 }
 
 function patches() {
