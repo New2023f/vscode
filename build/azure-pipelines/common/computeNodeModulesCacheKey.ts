@@ -16,15 +16,23 @@ shasum.update(fs.readFileSync(path.join(ROOT, 'build/.cachesalt')));
 shasum.update(fs.readFileSync(path.join(ROOT, '.yarnrc')));
 shasum.update(fs.readFileSync(path.join(ROOT, 'remote/.yarnrc')));
 
+const nodeModulesPaths = [...dirs];
+
+// Add distro, if present
+if (fs.existsSync(path.join(ROOT, '.build/distro/npm'))) {
+	nodeModulesPaths.push('.build/distro/npm');
+}
+
 // Add `package.json` and `yarn.lock` files
-for (const dir of dirs) {
+for (const dir of nodeModulesPaths) {
 	const packageJsonPath = path.join(ROOT, dir, 'package.json');
 	const packageJson = JSON.parse(fs.readFileSync(packageJsonPath).toString());
 	const relevantPackageJsonSections = {
 		dependencies: packageJson.dependencies,
 		devDependencies: packageJson.devDependencies,
 		optionalDependencies: packageJson.optionalDependencies,
-		resolutions: packageJson.resolutions
+		resolutions: packageJson.resolutions,
+		distro: packageJson.distro
 	};
 	shasum.update(JSON.stringify(relevantPackageJsonSections));
 

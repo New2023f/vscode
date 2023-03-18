@@ -4,13 +4,14 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as fs from 'fs';
+import * as cp from 'child_process';
 
 function log(...args: any[]): void {
 	console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, '[distro]', ...args);
 }
 
 function mixin(target: string, dependencies: string[]) {
-	log(`Mixing in distro node manifests: ${target}`);
+	log(`Mixing in distro npm dependencies: ${target}`);
 
 	const distroPackageJson = JSON.parse(fs.readFileSync('.build/distro/npm/package.json', 'utf8'));
 	const distroYarnLock = fs.readFileSync('.build/distro/npm/yarn.lock', 'utf8');
@@ -19,6 +20,7 @@ function mixin(target: string, dependencies: string[]) {
 	let ossYarnLock = fs.readFileSync(`${target}/yarn.lock`, 'utf8');
 
 	for (const dependency of dependencies) {
+		fs.cpSync(`.build/distro/npm/node_modules/${dependency}`, `${target}/node_modules/${dependency}`, { recursive: true, force: true });
 		ossPackageJson.dependencies[dependency] = distroPackageJson.dependencies[dependency];
 
 		const rx = new RegExp(`^"?${dependency}@.*\n(?:  .*\n)*\n`, 'm');
@@ -35,16 +37,19 @@ function mixin(target: string, dependencies: string[]) {
 	fs.writeFileSync(`${target}/package.json`, JSON.stringify(ossPackageJson, null, 2), 'utf8');
 	fs.writeFileSync(`${target}/yarn.lock`, ossYarnLock, 'utf8');
 
-	log(`Mixed in distro node manifests: ${target} ✔︎`);
+	log(`Mixed in distro npm dependencies: ${target} ✔︎`);
 }
 
 function main() {
-	log(`Mixing in distro node manifests...`);
+	log(`Installing distro npm dependencies...`);
+	cp.execSync(`yarn`, { stdio: 'inherit', cwd: '.build/distro/npm' });
+	log('Installed distro npm dependencies ✔︎');
 
+	log(`Mixing in distro npm dependencies...`);
 	const distroPackageJson = JSON.parse(fs.readFileSync('.build/distro/npm/package.json', 'utf8'));
 
-	for (const cwd of Object.keys(distroPackageJson.distro)) {
-		mixin(cwd, distroPackageJson.dependencies[cwd]);
+	for (const target of Object.keys(distroPackageJson.distro)) {
+		mixin(target, distroPackageJson.distro[target]);
 	}
 }
 
