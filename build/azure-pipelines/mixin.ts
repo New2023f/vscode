@@ -36,7 +36,7 @@ function mixin(quality: string | undefined) {
 
 	log('[mixin]', `Mixing in distro sources...`);
 
-	const basePath = `distro/mixin/${quality}`;
+	const basePath = `.build/distro/mixin/${quality}`;
 
 	for (const name of fs.readdirSync(basePath)) {
 		const distroPath = path.join(basePath, name);
@@ -79,14 +79,14 @@ function mixin(quality: string | undefined) {
 
 function npm() {
 	log(`[npm] Installing distro npm dependencies...`);
-	cp.execSync(`yarn`, { stdio: 'inherit', cwd: 'distro/npm' });
+	cp.execSync(`yarn`, { stdio: 'inherit', cwd: '.build/distro/npm' });
 	log('[npm] ✔︎');
 }
 
 function patches() {
 	log('[patch]', `Applying distro patches...`);
 
-	const basePath = `distro/patches`;
+	const basePath = `.build/distro/patches`;
 
 	for (const patch of fs.readdirSync(basePath)) {
 		cp.execSync(`git apply --ignore-whitespace --ignore-space-change ${basePath}/${patch}`, { stdio: 'inherit' });
