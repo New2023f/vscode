@@ -21,19 +21,19 @@ steps:
         displayName: Setup distro auth
 
       - bash: |
-        set -e
-        ArchivePath="$(Agent.TempDirectory)/distro.zip"
-        $DistroVersion = $(node -p "require('./package.json').distro")
+          set -e
+          ArchivePath="$(Agent.TempDirectory)/distro.zip"
+          $DistroVersion = $(node -p "require('./package.json').distro")
 
-        curl -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer $(github-distro-mixin-password)" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          -o $ArchivePath \
-          -L "https://api.github.com/repos/microsoft/vscode-distro/zipball/$DistroVersion"
+          curl -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $(github-distro-mixin-password)" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -o $ArchivePath \
+            -L "https://api.github.com/repos/microsoft/vscode-distro/zipball/$DistroVersion"
 
-        unzip $ArchivePath -d "$(Build.SourcesDirectory)"
-        mv "$(Build.SourcesDirectory)/microsoft-vscode-distro-$DistroVersion" "$(Build.SourcesDirectory)/distro"
-      displayName: Download distro
+          unzip $ArchivePath -d "$(Build.SourcesDirectory)"
+          mv "$(Build.SourcesDirectory)/microsoft-vscode-distro-$DistroVersion" "$(Build.SourcesDirectory)/distro"
+        displayName: Download distro
 
   - ${{ else }}:
       - pwsh: |
