@@ -42,9 +42,7 @@ steps:
       path: .build/builtInExtensions
     displayName: Restore built-in extensions
 
-  - script: |
-      set -e
-      tar -xzf .build/node_modules_cache/cache.tgz
+  - script: tar -xzf .build/node_modules_cache/cache.tgz
     condition: and(succeeded(), eq(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Extract node_modules cache
 
@@ -86,12 +84,9 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: |
-      set -e
-      node build/lib/builtInExtensions.js
-    env:
-      GITHUB_TOKEN: "$(github-distro-mixin-password)"
-    displayName: Download missing built-in extensions
+  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - script: node build/azure-pipelines/distro/mixin-npm
+        displayName: Mixin distro node modules
 
   - script: |
       set -e
@@ -101,9 +96,14 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Create node_modules archive
 
+  - script: node build/lib/builtInExtensions.js
+    env:
+      GITHUB_TOKEN: "$(github-distro-mixin-password)"
+    displayName: Download missing built-in extensions
+
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: node build/azure-pipelines/mixin
-        displayName: Mixin distro
+      - script: node build/azure-pipelines/distro/mixin-quality
+        displayName: Mixin distro quality
 
   - script: yarn npm-run-all -lp core-ci extensions-ci hygiene eslint valid-layers-check vscode-dts-compile-check tsec-compile-check
     env:
