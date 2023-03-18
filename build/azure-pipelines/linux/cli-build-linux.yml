@@ -19,7 +19,7 @@ parameters:
 
 steps:
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - ${{ if or(eq(parameters.VSCODE_BUILD_ALPINE_ARM64, true)) }}:
+      - ${{ if eq(parameters.VSCODE_BUILD_ALPINE_ARM64, true) }}:
           - bash: sudo apt update && sudo apt install -y unzip
             displayName: Install unzip
       - template: ../distro/download-distro.yml
