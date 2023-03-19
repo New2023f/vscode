@@ -105,6 +105,10 @@ steps:
     displayName: Recompile for Alpine
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
+  - script: node build/azure-pipelines/distro/mixin-npm
+    displayName: Mixin distro node modules
+    condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+
   - script: |
       set -e
       node build/azure-pipelines/common/listNodeModules.js .build/node_modules_list.txt

@@ -104,8 +104,6 @@ stages:
             displayName: Install distro node modules
 
           - script: node build/azure-pipelines/distro/mixin-npm
-            env:
-              npm_config_arch: $(NPM_ARCH)
             displayName: Mixin distro node modules
 
           - script: node build/azure-pipelines/distro/mixin-quality
@@ -251,8 +249,6 @@ stages:
             displayName: Install distro node modules
 
           - script: node build/azure-pipelines/distro/mixin-npm
-            env:
-              npm_config_arch: $(NPM_ARCH)
             displayName: Mixin distro node modules
 
           - script: node build/azure-pipelines/distro/mixin-quality
