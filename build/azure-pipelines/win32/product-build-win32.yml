@@ -62,23 +62,17 @@ steps:
       if (!(Test-Path ".build")) { New-Item -Path ".build" -ItemType Directory }
       node build/azure-pipelines/common/computeNodeModulesCacheKey.js $(VSCODE_ARCH) > .build/yarnlockhash
       node build/azure-pipelines/common/computeBuiltInDepsCacheKey.js > .build/builtindepshash
-    displayName: Prepare yarn cache flags
+    displayName: Prepare cache inputs
 
-  - ${{ if eq(parameters.VSCODE_QUALITY, 'oss') }}:
-      - task: Cache@2
-        inputs:
-          key: "genericNodeModules | $(Agent.OS) | .build/yarnlockhash"
-          path: .build/node_modules_cache
-          cacheHitVar: NODE_MODULES_RESTORED
-        displayName: Restore node_modules cache
-
-  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - task: Cache@2
-        inputs:
-          key: "nodeModules | $(Agent.OS) | .build/yarnlockhash"
-          path: .build/node_modules_cache
-          cacheHitVar: NODE_MODULES_RESTORED
-        displayName: Restore node_modules cache
+  - task: Cache@2
+    inputs:
+      ${{ if eq(parameters.VSCODE_QUALITY, 'oss') }}:
+        key: "genericNodeModules | $(Agent.OS) | .build/yarnlockhash"
+      ${{ else }}:
+        key: "nodeModules | $(Agent.OS) | .build/yarnlockhash"
+      path: .build/node_modules_cache
+      cacheHitVar: NODE_MODULES_RESTORED
+    displayName: Restore node_modules cache
 
   - task: Cache@2
     inputs:
@@ -122,13 +116,10 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - powershell: |
-      . build/azure-pipelines/win32/exec.ps1
-      $ErrorActionPreference = "Stop"
-      exec { node build/lib/builtInExtensions.js }
-    env:
-      GITHUB_TOKEN: "$(github-distro-mixin-password)"
-    displayName: Download missing built-in extensions
+  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - powershell: node build/azure-pipelines/distro/mixin-npm
+        condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+        displayName: Mixin distro node modules
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1
@@ -140,8 +131,13 @@ steps:
     displayName: Create node_modules archive
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - powershell: node build/azure-pipelines/mixin
-        displayName: Mix in quality
+      - powershell: node build/azure-pipelines/distro/mixin-quality
+        displayName: Mixin distro quality
+
+      - powershell: node build/lib/builtInExtensions.js
+        env:
+          GITHUB_TOKEN: "$(github-distro-mixin-password)"
+        displayName: Download built-in extensions
 
   - ${{ if eq(parameters.VSCODE_PUBLISH, true) }}:
       - powershell: node build\lib\policies

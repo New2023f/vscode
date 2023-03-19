@@ -49,7 +49,7 @@ steps:
       mkdir -p .build
       node build/azure-pipelines/common/computeNodeModulesCacheKey.js $VSCODE_ARCH > .build/yarnlockhash
       node build/azure-pipelines/common/computeBuiltInDepsCacheKey.js > .build/builtindepshash
-    displayName: Prepare yarn cache flags
+    displayName: Prepare cache inputs
 
   - task: Cache@2
     inputs:
@@ -104,10 +104,10 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: node build/lib/builtInExtensions.js
-    env:
-      GITHUB_TOKEN: "$(github-distro-mixin-password)"
-    displayName: Download missing built-in extensions
+  - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - script: node build/azure-pipelines/distro/mixin-npm
+        condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+        displayName: Mixin distro node modules
 
   - script: |
       set -e
@@ -118,8 +118,13 @@ steps:
     displayName: Create node_modules archive
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
-      - script: node build/azure-pipelines/mixin
-        displayName: Mix in quality
+      - script: node build/azure-pipelines/distro/mixin-quality
+        displayName: Mixin distro quality
+
+      - script: node build/lib/builtInExtensions.js
+        env:
+          GITHUB_TOKEN: "$(github-distro-mixin-password)"
+        displayName: Download built-in extensions
 
       - script: yarn gulp vscode-darwin-$(VSCODE_ARCH)-min-ci
         env:
@@ -135,17 +140,10 @@ steps:
         displayName: Build Server
 
   - ${{ else }}:
-      - script: yarn gulp "transpile-client-swc" "transpile-extensions"
+      - script: yarn gulp transpile-client-swc transpile-extensions
         env:
           VSCODE_MIXIN_PASSWORD: "$(github-distro-mixin-password)"
         displayName: Transpile
-
-  - script: |
-      set -e
-      APP_ROOT="$(Agent.BuildDirectory)/VSCode-darwin-$(VSCODE_ARCH)"
-      APP_NAME="`ls $APP_ROOT | head -n 1`"
-      echo "##vso[task.setvariable variable=APP_PATH]$APP_ROOT/$APP_NAME"
-    displayName: Find application path
 
   - ${{ if eq(parameters.VSCODE_BUILD_TUNNEL_CLI, true) }}:
       - task: DownloadPipelineArtifact@2
@@ -166,12 +164,15 @@ steps:
 
       - script: |
           set -e
+          APP_ROOT="$(Agent.BuildDirectory)/VSCode-darwin-$(VSCODE_ARCH)"
+          APP_NAME="`ls $APP_ROOT | head -n 1`"
+          APP_PATH="$APP_ROOT/$APP_NAME"
           ARCHIVE_NAME=$(ls "$(Build.ArtifactStagingDirectory)/cli" | head -n 1)
           unzip "$(Build.ArtifactStagingDirectory)/cli/$ARCHIVE_NAME" -d "$(Build.ArtifactStagingDirectory)/cli"
-          CLI_APP_NAME=$(node -p "require(\"$(APP_PATH)/Contents/Resources/app/product.json\").tunnelApplicationName")
-          APP_NAME=$(node -p "require(\"$(APP_PATH)/Contents/Resources/app/product.json\").applicationName")
-          mv "$(Build.ArtifactStagingDirectory)/cli/$APP_NAME" "$(APP_PATH)/Contents/Resources/app/bin/$CLI_APP_NAME"
-          chmod +x "$(APP_PATH)/Contents/Resources/app/bin/$CLI_APP_NAME"
+          CLI_APP_NAME=$(node -p "require(\"$APP_PATH/Contents/Resources/app/product.json\").tunnelApplicationName")
+          APP_NAME=$(node -p "require(\"$APP_PATH/Contents/Resources/app/product.json\").applicationName")
+          mv "$(Build.ArtifactStagingDirectory)/cli/$APP_NAME" "$APP_PATH/Contents/Resources/app/bin/$CLI_APP_NAME"
+          chmod +x "$APP_PATH/Contents/Resources/app/bin/$CLI_APP_NAME"
         displayName: Make CLI executable
 
   - ${{ if or(eq(parameters.VSCODE_RUN_UNIT_TESTS, true), eq(parameters.VSCODE_RUN_INTEGRATION_TESTS, true), eq(parameters.VSCODE_RUN_SMOKE_TESTS, true)) }}:

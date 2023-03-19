@@ -18,7 +18,7 @@ steps:
       if (!(Test-Path ".build")) { New-Item -Path ".build" -ItemType Directory }
       node build/azure-pipelines/common/computeNodeModulesCacheKey.js $(VSCODE_ARCH) > .build/yarnlockhash
       node build/azure-pipelines/common/computeBuiltInDepsCacheKey.js > .build/builtindepshash
-    displayName: Prepare yarn cache flags
+    displayName: Prepare cache inputs
 
   - task: Cache@2
     inputs:
@@ -75,7 +75,7 @@ steps:
       exec { node build/lib/builtInExtensions.js }
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
-    displayName: Download missing built-in extensions
+    displayName: Download built-in extensions
 
   - powershell: |
       . build/azure-pipelines/win32/exec.ps1

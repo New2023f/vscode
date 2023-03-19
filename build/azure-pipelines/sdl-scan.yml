@@ -97,8 +97,11 @@ stages:
               CHILD_CONCURRENCY: 1
             displayName: Install dependencies
 
-          - script: node build/azure-pipelines/mixin
-            displayName: Mixin distro
+          - script: node build/azure-pipelines/distro/mixin-npm
+            displayName: Mixin distro node modules
+
+          - script: node build/azure-pipelines/distro/mixin-quality
+            displayName: Mixin distro quality
 
           - powershell: |
               . build/azure-pipelines/win32/exec.ps1
@@ -233,8 +236,11 @@ stages:
               GITHUB_TOKEN: "$(github-distro-mixin-password)"
             displayName: Install dependencies
 
-          - script: node build/azure-pipelines/mixin
-            displayName: Mixin distro
+          - script: node build/azure-pipelines/distro/mixin-npm
+            displayName: Mixin distro node modules
+
+          - script: node build/azure-pipelines/distro/mixin-quality
+            displayName: Mixin distro quality
 
           - script: yarn gulp vscode-symbols-linux-$(VSCODE_ARCH)
             displayName: Build

@@ -31,7 +31,7 @@ steps:
       mkdir -p .build
       node build/azure-pipelines/common/computeNodeModulesCacheKey.js "web" > .build/yarnlockhash
       node build/azure-pipelines/common/computeBuiltInDepsCacheKey.js > .build/builtindepshash
-    displayName: Prepare yarn cache flags
+    displayName: Prepare cache inputs
 
   - task: Cache@2
     inputs:
@@ -81,10 +81,9 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
-  - script: node build/lib/builtInExtensions.js
-    env:
-      GITHUB_TOKEN: "$(github-distro-mixin-password)"
-    displayName: Download missing built-in extensions
+  - script: node build/azure-pipelines/distro/mixin-npm
+    condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+    displayName: Mixin distro node modules
 
   - script: |
       set -e
@@ -94,8 +93,13 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Create node_modules archive
 
-  - script: node build/azure-pipelines/mixin
-    displayName: Mix in quality
+  - script: node build/azure-pipelines/distro/mixin-quality
+    displayName: Mixin distro quality
+
+  - script: node build/lib/builtInExtensions.js
+    env:
+      GITHUB_TOKEN: "$(github-distro-mixin-password)"
+    displayName: Download built-in extensions
 
   - script: yarn gulp vscode-web-min-ci
     env:

@@ -18,7 +18,7 @@ steps:
       mkdir -p .build
       node build/azure-pipelines/common/computeNodeModulesCacheKey.js $VSCODE_ARCH > .build/yarnlockhash
       node build/azure-pipelines/common/computeBuiltInDepsCacheKey.js > .build/builtindepshash
-    displayName: Prepare yarn cache flags
+    displayName: Prepare cache inputs
 
   - task: Cache@2
     inputs:
@@ -78,7 +78,7 @@ steps:
   - script: node build/lib/builtInExtensions.js
     env:
       GITHUB_TOKEN: "$(github-distro-mixin-password)"
-    displayName: Download missing built-in extensions
+    displayName: Download built-in extensions
 
   - script: |
       set -e
@@ -99,19 +99,13 @@ steps:
   - task: EsrpClientTool@1
     displayName: Download ESRPClient
 
-  - script: |
-      set -e
-      node build/azure-pipelines/common/sign "$(esrpclient.toolpath)/$(esrpclient.toolname)" darwin-sign $(ESRP-PKI) $(esrp-aad-username) $(esrp-aad-password) $(Pipeline.Workspace)/unsigned_vscode_client_darwin_$(VSCODE_ARCH)_archive VSCode-darwin-$(VSCODE_ARCH).zip
+  - script: node build/azure-pipelines/common/sign "$(esrpclient.toolpath)/$(esrpclient.toolname)" darwin-sign $(ESRP-PKI) $(esrp-aad-username) $(esrp-aad-password) $(Pipeline.Workspace)/unsigned_vscode_client_darwin_$(VSCODE_ARCH)_archive VSCode-darwin-$(VSCODE_ARCH).zip
     displayName: Codesign
 
-  - script: |
-      set -e
-      node build/azure-pipelines/common/sign "$(esrpclient.toolpath)/$(esrpclient.toolname)" darwin-notarize $(ESRP-PKI) $(esrp-aad-username) $(esrp-aad-password) $(Pipeline.Workspace)/unsigned_vscode_client_darwin_$(VSCODE_ARCH)_archive VSCode-darwin-$(VSCODE_ARCH).zip
+  - script: node build/azure-pipelines/common/sign "$(esrpclient.toolpath)/$(esrpclient.toolname)" darwin-notarize $(ESRP-PKI) $(esrp-aad-username) $(esrp-aad-password) $(Pipeline.Workspace)/unsigned_vscode_client_darwin_$(VSCODE_ARCH)_archive VSCode-darwin-$(VSCODE_ARCH).zip
     displayName: Notarize
 
-  - script: |
-      set -e
-      unzip $(Pipeline.Workspace)/unsigned_vscode_client_darwin_$(VSCODE_ARCH)_archive/VSCode-darwin-$(VSCODE_ARCH).zip -d $(Agent.BuildDirectory)/VSCode-darwin-$(VSCODE_ARCH)
+  - script: unzip $(Pipeline.Workspace)/unsigned_vscode_client_darwin_$(VSCODE_ARCH)_archive/VSCode-darwin-$(VSCODE_ARCH).zip -d $(Agent.BuildDirectory)/VSCode-darwin-$(VSCODE_ARCH)
     displayName: Extract signed app
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
@@ -119,20 +113,10 @@ steps:
       set -e
       APP_ROOT="$(Agent.BuildDirectory)/VSCode-darwin-$(VSCODE_ARCH)"
       APP_NAME="`ls $APP_ROOT | head -n 1`"
-      echo "##vso[task.setvariable variable=APP_PATH]$APP_ROOT/$APP_NAME"
-    displayName: Find application path
-    condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
-
-  - script: |
-      set -e
-      codesign -dv --deep --verbose=4 "$(APP_PATH)"
+      APP_PATH="$APP_ROOT/$APP_NAME"
+      codesign -dv --deep --verbose=4 "$APP_PATH"
+      "$APP_PATH/Contents/Resources/app/bin/code" --export-default-configuration=.build
     displayName: Verify signature
-    condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
-
-  - script: |
-      set -e
-      "$(APP_PATH)/Contents/Resources/app/bin/code" --export-default-configuration=.build
-    displayName: Verify signed application starts OK
     condition: and(succeeded(), ne(variables['VSCODE_ARCH'], 'arm64'))
 
   - script: |

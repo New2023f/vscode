@@ -10,7 +10,12 @@ steps:
   - task: NodeTool@0
     inputs:
       versionSpec: "16.x"
-
   - template: ./distro/download-distro.yml
-    parameters:
-      VSCODE_QUALITY: ${{ parameters.VSCODE_QUALITY }}
+  - script: node build/azure-pipelines/distro/apply-patches
+    displayName: Apply distro patches
+  - script: node build/azure-pipelines/distro/mixin-npm
+    displayName: Mixin distro node modules
+  - script: node build/azure-pipelines/distro/mixin-npm
+    displayName: Mixin distro node modules
+  - script: node build/azure-pipelines/distro/mixin-quality
+    displayName: Mixin distro quality
