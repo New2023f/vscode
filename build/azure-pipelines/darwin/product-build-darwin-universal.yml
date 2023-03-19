@@ -83,6 +83,8 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
   - script: node build/azure-pipelines/distro/mixin-npm
+    env:
+      npm_config_arch: "$(NPM_ARCH)"
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Mixin distro node modules
 

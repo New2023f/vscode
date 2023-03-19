@@ -53,4 +53,8 @@ function main() {
 	}
 }
 
+if (process.env['npm_config_arch'] === 'armv7l') {
+	process.env['npm_config_arch'] = 'arm';
+}
+
 main();
