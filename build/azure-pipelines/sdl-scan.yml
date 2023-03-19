@@ -97,7 +97,7 @@ stages:
               CHILD_CONCURRENCY: 1
             displayName: Install dependencies
 
-          - script: yarn
+          - script: yarn --frozen-lockfile --check-files
             workingDirectory: .build/distro/npm
             env:
               npm_config_arch: $(NPM_ARCH)
@@ -244,7 +244,7 @@ stages:
               GITHUB_TOKEN: "$(github-distro-mixin-password)"
             displayName: Install dependencies
 
-          - script: yarn
+          - script: yarn --frozen-lockfile --check-files
             workingDirectory: .build/distro/npm
             env:
               npm_config_arch: $(NPM_ARCH)
