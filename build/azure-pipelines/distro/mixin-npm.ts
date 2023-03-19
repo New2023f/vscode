@@ -42,7 +42,7 @@ function mixin(target: string, dependencies: string[]) {
 
 function main() {
 	log(`Installing distro npm dependencies...`);
-	cp.execSync(`yarn`, { stdio: 'inherit', cwd: '.build/distro/npm' });
+	cp.execSync(`yarn install --verbose`, { stdio: 'inherit', cwd: '.build/distro/npm' });
 	log('Installed distro npm dependencies ✔︎');
 
 	log(`Mixing in distro npm dependencies...`);
