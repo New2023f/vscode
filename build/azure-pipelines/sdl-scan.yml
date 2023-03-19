@@ -97,9 +97,15 @@ stages:
               CHILD_CONCURRENCY: 1
             displayName: Install dependencies
 
+          - script: yarn
+            workingDirectory: .build/distro/npm
+            env:
+              npm_config_arch: $(NPM_ARCH)
+            displayName: Install distro node modules
+
           - script: node build/azure-pipelines/distro/mixin-npm
             env:
-              npm_config_arch: "$(NPM_ARCH)"
+              npm_config_arch: $(NPM_ARCH)
             displayName: Mixin distro node modules
 
           - script: node build/azure-pipelines/distro/mixin-quality
@@ -238,9 +244,15 @@ stages:
               GITHUB_TOKEN: "$(github-distro-mixin-password)"
             displayName: Install dependencies
 
+          - script: yarn
+            workingDirectory: .build/distro/npm
+            env:
+              npm_config_arch: $(NPM_ARCH)
+            displayName: Install distro node modules
+
           - script: node build/azure-pipelines/distro/mixin-npm
             env:
-              npm_config_arch: "$(NPM_ARCH)"
+              npm_config_arch: $(NPM_ARCH)
             displayName: Mixin distro node modules
 
           - script: node build/azure-pipelines/distro/mixin-quality

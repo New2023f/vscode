@@ -117,6 +117,13 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - powershell: yarn
+        workingDirectory: .build/distro/npm
+        env:
+          npm_config_arch: $(VSCODE_ARCH)
+        condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+        displayName: Install distro node modules
+
       - powershell: node build/azure-pipelines/distro/mixin-npm
         env:
           npm_config_arch: $(VSCODE_ARCH)

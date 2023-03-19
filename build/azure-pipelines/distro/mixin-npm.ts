@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as fs from 'fs';
-import * as cp from 'child_process';
 
 function log(...args: any[]): void {
 	console.log(`[${new Date().toLocaleTimeString('en', { hour12: false })}]`, '[distro]', ...args);
@@ -41,20 +40,12 @@ function mixin(target: string, dependencies: string[]) {
 }
 
 function main() {
-	log(`Installing distro npm dependencies...`);
-	cp.execSync(`yarn install --verbose`, { stdio: 'inherit', cwd: '.build/distro/npm' });
-	log('Installed distro npm dependencies ✔︎');
-
 	log(`Mixing in distro npm dependencies...`);
 	const distroPackageJson = JSON.parse(fs.readFileSync('.build/distro/npm/package.json', 'utf8'));
 
 	for (const target of Object.keys(distroPackageJson.distro)) {
 		mixin(target, distroPackageJson.distro[target]);
 	}
-}
-
-if (process.env['npm_config_arch'] === 'armv7l') {
-	process.env['npm_config_arch'] = 'arm';
 }
 
 main();

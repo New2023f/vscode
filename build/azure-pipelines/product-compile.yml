@@ -82,6 +82,11 @@ steps:
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
   - ${{ if ne(parameters.VSCODE_QUALITY, 'oss') }}:
+      - script: yarn
+        workingDirectory: .build/distro/npm
+        condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+        displayName: Install distro node modules
+
       - script: node build/azure-pipelines/distro/mixin-npm
         condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
         displayName: Mixin distro node modules

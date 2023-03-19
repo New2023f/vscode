@@ -82,9 +82,16 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
+  - script: yarn
+    workingDirectory: .build/distro/npm
+    env:
+      npm_config_arch: $(VSCODE_ARCH)
+    condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+    displayName: Install distro node modules
+
   - script: node build/azure-pipelines/distro/mixin-npm
     env:
-      npm_config_arch: "$(NPM_ARCH)"
+      npm_config_arch: "$(VSCODE_ARCH)"
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Mixin distro node modules
 

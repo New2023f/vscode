@@ -81,6 +81,11 @@ steps:
     displayName: Install dependencies
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
 
+  - script: yarn
+    workingDirectory: .build/distro/npm
+    condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
+    displayName: Install distro node modules
+
   - script: node build/azure-pipelines/distro/mixin-npm
     condition: and(succeeded(), ne(variables.NODE_MODULES_RESTORED, 'true'))
     displayName: Mixin distro node modules
