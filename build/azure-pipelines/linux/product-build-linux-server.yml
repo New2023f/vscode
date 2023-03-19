@@ -62,9 +62,7 @@ steps:
           GITHUB_TOKEN: "$(github-distro-mixin-password)"
         condition: and(succeeded(), eq(variables['VSCODE_ARCH'], 'arm64'))
 
-  - script: |
-      set -e
-      tar -cz --ignore-failed-read -f $(Build.ArtifactStagingDirectory)/reh_node_modules-$(VSCODE_ARCH).tar.gz -C $(Build.SourcesDirectory)/remote node_modules
+  - script: tar -cz --ignore-failed-read -f $(Build.ArtifactStagingDirectory)/reh_node_modules-$(VSCODE_ARCH).tar.gz -C $(Build.SourcesDirectory)/remote node_modules
     displayName: Compress node_modules output
 
   - task: PublishPipelineArtifact@0
